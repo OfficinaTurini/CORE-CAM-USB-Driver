@@ -3,7 +3,7 @@
  **                                                                         **
  **        AiCam Types & Constants definitions for camera control           **
  **                     for Windows DLL or Linux LIB                        **
- **            (C) 2016 Officina Turini, All Rights Reserved                **
+ **          (C) 2016-2019 Officina Turini, All Rights Reserved             **
  **                                                                         **
  **                                                                         **
  **   Develope contributes:    Manuele Turini                               **
@@ -23,9 +23,9 @@
   	This series of libraries allows for the complete management of AiCam OT cameras.\n
 	They have been made using the classic DLL technique, or the library for LINUX;\n
 	With this modality all you need to do is declare the include aicam.h file within your own C program to obtain complete access to the library.\n
-	To become familiar with the procedures available you should first of all examine the suggested.sln\n
-	example project, which can be opened with the Visual 2008 or higher.\n
-	This library runs on Windows 32-bit platforms such as Win95/98, NT, Windows 2000, XP, VISTA, Windows 7, Windows 8 or LINUX.\n
+	To become familiar with the procedures available you should first of all examine the testAIC.sln\n
+	example project, which can be opened with the Visual 2010 or higher.\n
+	This library runs on Windows 32-bit platforms such as XP, VISTA, Windows 7, Windows 8/10 or LINUX.\n
 
 	\section instal Installation
 	The installation of the library is of course always linked to the installation of the camera  :\n
@@ -34,12 +34,12 @@
 
 	\section files Library Files
 	When you copy the files of the library into the work directory you have to be well aware of the necessary ones:\n
-		-# aicam.dll and aicam.lib for Windows or aicam.a for Linux : this is the library !\n
+		-# aicamV2.dll and aicam.lib for Windows or aicamV2.a for Linux : this is the library !\n
 		-# aicam.h and aicamdef.h are definition files for C/C++ language; they are necessary to compile and link the library to its own C/C++ code.\n
 		-# ftd2xx.dll this library file must always present, the library use it to access at USB 1.1/2.0 port.\n
  */
 
-/*! \page histo DCL Version History.
+/*! \page histo AiCAM Version History.
 	\verbatim
 	1.0.0 27/11/2016 First release!
 	\endverbatim

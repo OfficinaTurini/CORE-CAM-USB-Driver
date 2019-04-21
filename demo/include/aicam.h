@@ -144,7 +144,7 @@ CTYPE void DLL AIC_RoiStatistics(int op, roi * r, ImageHandle * i);
 // Disk access
 CTYPE U16 DLL AIC_DiskMount(int enable, AiCam handle, int * ok);
 CTYPE U16 DLL AIC_DiskFileList(const char * path, FILINFO ** fileList, AiCam handle);
-CTYPE U16 DLL AIC_DiskCopyFilesFrom(const char * srcPath, const char * dstPath, AiCam handle);	// PC <- AiCam
+CTYPE U16 DLL AIC_ReadFileFrom(const char * srcPath, const char * dstPath, AiCam handle);	// PC <- AiCam
 CTYPE U16 DLL AIC_DiskCopyFilesTo(const char * srcPath, const char * dstPath, AiCam handle);	// PC -> AiCam
 // Low level I/O
 CTYPE U16 DLL AIC_BufferAlloc(unsigned kBytes, AiCam handle);
