@@ -42,6 +42,7 @@
 /*! \page histo AiCAM Version History.
 	\verbatim
 	1.0.0 27/11/2016 First release!
+    2.0.0 20/04/2019 CORE-CAM update
 	\endverbatim
 */
 
