@@ -144,7 +144,7 @@ int _focus(bool avg = false)
 				lc++;
 				k = AIC_ImageShow("FOCUS", img);
 				if((lc % 10) == 0)
-					printf("[%6u] Elapsed time: %7.3lf mS @ %.1lf fps\n", lc, (double) et / 1000.0, 1E6 / (double) et);
+					printf("[%6u] Elapsed time: %7.1lf mS @ %.1lf fps\n", lc, (double) et / 1000.0, 1E6 / (double) et);
 			}
 			if(k != 255) break;
 		}
@@ -179,6 +179,7 @@ void commandList()
 	printf("10 - 752x480 Avg by 10 frames\n");
 	printf("11 - Grab 1000 frames 188x120 Bin 4x4 @ 16bit\n");
 	printf("12 - Show SD contents\n");
+	printf("13 - Copy SD contents\n");
 	printf("> ");
 }
 
@@ -336,12 +337,40 @@ int main(int argc, char * argv[])
 											 fileList[i]->fsize,
 											&(fileList[i]->fname[0]));
 								AIC_DiskMount(false, cam, 0);
-								AIC_CameraLinkClose(cam);	// Close USB channel
-								return 0;
 							}
+							AIC_CameraLinkClose(cam);	// Close USB channel
+							return 0;
 						}
 						break;
 				case 13:// Copy SD file contents
+						{
+							if(AIC_DiskMount(true, cam, 0))
+							{
+								unsigned long long	amount = 0;
+								unsigned	nf, i, et;
+								FILINFO		** fileList;
+								char		dest[1024];
+								fileList = (FILEINFO **) malloc(sizeof(FILEINFO *) * 1024);
+								printf("SD mount OK\n");
+								nf = AIC_DiskFileList("/", fileList, cam);
+								printf("Files: %d\n", nf);
+								et = GetTickCount();
+								for(i = 0; i < nf; i++)
+								{
+									// Check if this directory exists!
+									strcpy((char *) dest, "C:\\core-cam\\");
+									strcat(dest, (const char *) &(fileList[i]->fname[0]));
+									printf("[%4u]:[%9u] -> %s\n", i + 1, fileList[i]->fsize, &(fileList[i]->fname[0]));
+									AIC_ReadFileFrom((const char *) &(fileList[i]->fname[0]), dest, cam);
+									amount += fileList[i]->fsize;
+								}
+								et = GetTickCount() - et;
+								AIC_DiskMount(false, cam, 0);
+								printf("Transferred %u files, total amount %llu Kb, elapsed time %.1lf\n", nf, amount / 1024, (double) et / 1000.0);
+							}
+							AIC_CameraLinkClose(cam);	// Close USB channel
+							return 0;
+						}
 						break;
 				}
 				// Always send this command when image size or type is changed!
