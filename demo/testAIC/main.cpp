@@ -21,6 +21,7 @@
 #include <math.h>
 #include "aicam.h"
 #include "_string.h"
+#include "remote.h"
 
 extern void StartTimer();
 extern unsigned long long EndTimer();
@@ -120,7 +121,78 @@ int _imageShow()
 	return 0;
 }
 
-int _focus(bool avg = false)
+int _focusLensControl()
+{
+	bool		ok;
+	U16			ret;
+	char		ch = 0;
+	unsigned	lc = 0;
+	int			k = 0;
+	unsigned long long et;
+	if(!img)
+		img = AIC_ImageCreate(cam);
+	if(img)
+	{
+		while(ch != '.')
+		{
+			if(_kbhit())
+			{
+				ok = false;
+				ch = _getch();
+				switch(ch)
+				{
+				case '+':	// Inc zoom, inc/dec, steps, step delay (ms)
+							AIC_CommandPipe(cam, AIC_PIPE_LENS_ZOOM, 0, 100, 5);
+							ok = true;
+							break;
+				case '-':	// Dec zoom, inc/dec, steps, step delay (ms)
+							AIC_CommandPipe(cam, AIC_PIPE_LENS_ZOOM, 1, 100, 5);
+							ok = true;
+							break;
+				case 'f':	// Inc focus, inc/dec, steps, step delay (ms)
+							AIC_CommandPipe(cam, AIC_PIPE_LENS_FOCUS, 0, 100, 5);
+							ok = true;
+							break;
+				case 'F':	// Dec focus, inc/dec, steps, step delay (ms)
+							AIC_CommandPipe(cam, AIC_PIPE_LENS_FOCUS, 1, 100, 5);
+							ok = true;
+							break;
+				case 'i':	// IR cut off
+							AIC_CommandPipe(cam, AIC_PIPE_LENS_IR, 0);
+							ok = true;
+							break;
+				case 'I':	// IR cut on
+							AIC_CommandPipe(cam, AIC_PIPE_LENS_IR, 1);
+							ok = true;
+							break;
+				}
+				if(ok)
+				{
+					ret = AIC_CommandPipeRetCode();
+					if(ret != AIC_DSP_ACK)
+					{
+						printf("Command fail!\n");
+						return 0;
+					}
+				}
+			}
+			StartTimer();
+			if(AIC_CameraGrabWait(cam))
+			{
+				AIC_CameraTransfer(0, cam, img);
+				et = EndTimer();
+				lc++;
+				AIC_ImageShow("FOCUS", img);
+				if((lc % 5) == 0)
+					printf("[%6u] Elapsed time: %7.1lf mS @ %.1lf fps\n", lc, (double) et / 1000.0, 1E6 / (double) et);
+			}
+		}
+		AIC_ImageShowClose("FOCUS");
+	}
+	return 0;
+}
+
+int _focus(bool avg = false, bool not = false)
 {
 	unsigned	lc = 0;
 	int			k = 0;
@@ -129,13 +201,15 @@ int _focus(bool avg = false)
 		img = AIC_ImageCreate(cam);
 	if(img)
 	{
-		SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS); 
-		SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL); 
+		//SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS); 
+		//SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL); 
 		while(!_kbhit())
 		{
 			StartTimer();
 			if(AIC_CameraGrabWait(cam))
 			{
+				if(not)
+					AIC_ImageNot(cam);
 				if(avg)
 					AIC_CameraTransferAverage(cam, img);
 				else
@@ -143,13 +217,41 @@ int _focus(bool avg = false)
 				et = EndTimer();
 				lc++;
 				k = AIC_ImageShow("FOCUS", img);
-				if((lc % 10) == 0)
+				if((lc % 5) == 0)
 					printf("[%6u] Elapsed time: %7.1lf mS @ %.1lf fps\n", lc, (double) et / 1000.0, 1E6 / (double) et);
 			}
 			if(k != 255) break;
 		}
-		SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);          
-		SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
+		//SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);          
+		//SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
+		AIC_ImageShowClose("FOCUS");
+	}
+	return 0;
+}
+
+int _splitFocusAction()
+{
+	unsigned	lc = 0;
+	int			k = 0;
+	unsigned long long et;
+
+	if(!img)
+		img = AIC_ImageCreate(cam);
+	if(img)
+	{
+		StartTimer();
+		AIC_CameraGrab(cam);
+		while(!_kbhit())
+		{
+			AIC_CameraTransferGrab(0, cam, img);
+			et = EndTimer();
+			StartTimer();
+			lc++;
+			k = AIC_ImageShow("FOCUS", img);
+			if((lc % 5) == 0)
+				printf("[%6u] Elapsed time: %7.1lf mS @ %.1lf fps\n", lc, (double) et / 1000.0, 1E6 / (double) et);
+			if(k != 255) break;
+		}
 		AIC_ImageShowClose("FOCUS");
 	}
 	return 0;
@@ -180,8 +282,16 @@ void commandList()
 	printf("11 - Grab 1000 frames 188x120 Bin 4x4 @ 16bit\n");
 	printf("12 - Show SD contents\n");
 	printf("13 - Copy SD contents\n");
+	printf("14 - Split action in focus\n");
+	printf("15 - Image negate\n");
+	printf("16 - Create a file on SD\n");
+	printf("17 - Lens controls\n");
+	printf("18 - Remote command\n");
 	printf("> ");
 }
+
+//#define LOOP_BACK_TEST	1
+#define LOOP_BACK_NUM	(65536 * 4)
 
 int main(int argc, char * argv[])
 {
@@ -189,8 +299,11 @@ int main(int argc, char * argv[])
 	printf("Copyright 2018-2019 Manuele Turini\n");
 
 	// Find available cameras on all USB available channels
-	int		usb = AIC_AvailableCameras(), n, sc, ret, OK;
-	//testTimer();
+	int		usb = AIC_AvailableCameras(), n, sc, OK;
+	
+	// Simple program to check timer
+	// testTimer();
+
 	if(usb > 0)
 	{
 		// List available cameras
@@ -205,11 +318,54 @@ int main(int argc, char * argv[])
 		cam = AIC_CameraLinkOpen(sc);	// Open the USB channel for selected camera
 		if(cam)
 		{
+#ifdef LOOP_BACK_TEST
+			char		ch;
+			unsigned long long et, tot = 0;
+			U32			* mem = (U32 *) malloc(LOOP_BACK_NUM * sizeof(U32));
+			unsigned	loop, i;
+			printf("\nTest for USB connection, run a test for values of 10000 or higher.\n");
+			printf("At each test 1Mbytes are transferred and checked.\n");
+			printf("Test to execute: ");
+			scanf("%u", &loop);
+			printf("\n");
+			for(unsigned l = 0; l < loop; l++)
+			{
+				StartTimer();
+				if(AIC_LoopBackTest(mem, LOOP_BACK_NUM, cam))
+				{
+					et = EndTimer();
+					// Check received data
+					for(i = 0; i < LOOP_BACK_NUM; i++)
+						if(i != mem[i])
+						{
+							printf("\n[%u] fail at %u: found %X instead of %X\n", l, i, mem[i], i);
+							break;
+						}
+					if(i == LOOP_BACK_NUM)
+					{
+						tot += (long long) LOOP_BACK_NUM * sizeof(U32);
+						printf("%3.1lf%% %4llu mS %6llu byte/s %5llu Mbyte\r", (double) (l + 1) * 100.0 / (double) loop, et / 1000ll, (long long) LOOP_BACK_NUM * sizeof(U32) * 1000000ll / et, tot / (1024ll * 1024ll));
+					}
+				}
+				else
+				{
+					printf("\nLoop back command fail\n");
+					break;
+				}
+				if(i < LOOP_BACK_NUM)
+					break;
+			}
+			free(mem);
+			printf("\nEnd of test, press any key to exit.\n");
+			ch = getch();
+			return 0;
+#endif
 			if(AIC_CameraStart(cam))	// Open connection with selected camera
 			{
+				bool	avg = false, not = false;
 				// Stop automatic gain and exposure
 				OK = AIC_CameraModes(false, true, cam);
-				// Set minimum exposure time
+				// Set 0.5 ms exposure time
 				AIC_CameraSetExposureMs(0.5, cam);
 
 				commandList(); scanf("%d", &sc);		// Wait user command selection
@@ -245,7 +401,7 @@ int main(int argc, char * argv[])
 						OK = AIC_CameraBinning(4, 4, cam);
 						break;
 				case 6:	// Create a ROI of 128x128				[  53 fps]
-						OK = AIC_CameraROI(312, 56, 128, 128, cam);
+						OK = AIC_CameraROI(312, 176, 128, 128, cam);
 						break;
 				case 7:	// Create a ROI of 128x120 @ bin 2x2	[  53 fps]
 						OK = AIC_CameraBinning(2, 2, cam);
@@ -320,6 +476,7 @@ int main(int argc, char * argv[])
 								FILINFO		** fileList;
 								fileList = (FILEINFO **) malloc(sizeof(FILEINFO *) * 1024);
 								printf("SD mount OK\n");
+								printf("CWD: %s\n", AIC_DiskPath(cam, 0));
 								nf = AIC_DiskFileList("/", fileList, cam);
 								printf("Files: %d\n", nf);
 								for(i = 0; i < nf; i++)
@@ -357,12 +514,19 @@ int main(int argc, char * argv[])
 								et = GetTickCount();
 								for(i = 0; i < nf; i++)
 								{
-									// Check if this directory exists!
-									strcpy((char *) dest, "C:\\core-cam\\");
-									strcat(dest, (const char *) &(fileList[i]->fname[0]));
-									printf("[%4u]:[%9u] -> %s\n", i + 1, fileList[i]->fsize, &(fileList[i]->fname[0]));
-									AIC_ReadFileFrom((const char *) &(fileList[i]->fname[0]), dest, cam);
-									amount += fileList[i]->fsize;
+									if(fileList[i]->fattrib & AM_DIR)
+									{
+										// Do nothing
+									}
+									else
+									{
+										// Check if this directory exists!
+										strcpy((char *) dest, "C:\\core-cam\\");
+										strcat(dest, (const char *) &(fileList[i]->fname[0]));
+										printf("[%4u]:[%9u] -> %s\n", i + 1, fileList[i]->fsize, &(fileList[i]->fname[0]));
+										AIC_GetFile((const char *) &(fileList[i]->fname[0]), dest, cam);
+										amount += fileList[i]->fsize;
+									}
 								}
 								et = GetTickCount() - et;
 								AIC_DiskMount(false, cam, 0);
@@ -372,13 +536,84 @@ int main(int argc, char * argv[])
 							return 0;
 						}
 						break;
+				case 14:// Split focus action
+						break;
+				case 15:// Not
+						not = true;
+						break;
+				case 16:// Create a file on CORE-CAM SD
+						if(AIC_DiskMount(true, cam, 0))
+						{
+							FILE	* fd = fopen("C:\\hello.txt", "wb");
+							for(int i = 0; i < 32768; i++)
+								fprintf(fd, "Hello world\n");
+							fclose(fd);
+							AIC_PutFile("C:\\hello.txt", "/hello.txt", cam);
+						}
+						return 0;
+						break;
+				case 17:// Lens control
+						{
+							AIC_CameraModes(true, true, cam);
+							AIC_CameraDataUpdate(cam);
+							_focusLensControl();
+							AIC_CameraLinkClose(cam);
+							return 0;
+						}
+						break;
+				case 18:// Remote command
+						{
+							U16	pRev = HRC_Rev(cam);
+							if(pRev < 100)
+								printf("Hercules board not connected!\n");
+							else
+							{
+								dspinSettings	mot[3];
+								printf("Hercules board connected!\n");
+								printf("Set power output 1 ON for 5s\n");
+								HRC_PowerOutput(cam, 1, true);
+								Sleep(5000);
+								HRC_PowerOutput(cam, 1, false);
+								printf("Set power output 1 OFF\n");
+								// Read and dump motor settings
+								for(int i = 0; i < 4; i++)
+								{
+									if(HRC_GetConfig(cam, i, &mot[i]))
+									{
+										printf("[%d] Acceleration              Register = %10.2lf steps/s/s\n", i, (double) mot[i].accel / 0.137438);
+										printf("[%d] Deceleration              Register = %10.2lf steps/s/s\n", i, (double) mot[i].decel / 0.137438);
+										printf("[%d] MaximumSpeed              Register = %10.2lf steps/s\n", i, (double) mot[i].maxSpeed / 0.065536);
+										printf("[%d] MinimumSpeed              Register = %10.2lf steps/s\n", i, (double) mot[i].minSpeed / 0.238);
+										printf("[%d] HoldingKval               Register = %10d\n", i, mot[i].hldKVAL);
+										printf("[%d] ConstantSpeedKval         Register = %10d\n", i, mot[i].runKVAL);
+										printf("[%d] AccelerationStartingKval  Register = %10d\n", i, mot[i].accKVAL);
+										printf("[%d] DecelerationStartingKval  Register = %10d\n", i, mot[i].decKVAL);
+										printf("[%d] IntersectSpeed            Register = %10.2lf steps/s\n", i, (double) mot[i].intSpeed / 4.1943);
+										printf("[%d] StartSlope                Register = %10d\n", i, mot[i].startSlope);
+										printf("[%d] AccelerationFinalSlope    Register = %10d\n", i, mot[i].finalSlopeAcc);
+										printf("[%d] DecelerationFinalSlope    Register = %10d\n", i, mot[i].finalSlopeDec);
+										printf("[%d] ThermalCompensationFactor Register = %10.2lf\n", i, (double) mot[i].kTherm * 0.03125 + 1.0);
+										printf("[%d] OcdThreshold              Register = %10.2lf A\n", i, (double) (mot[i].current + 1) * 0.375);
+										printf("[%d] StallThreshold            Register = %10.2lf A\n", i, (double) (mot[i].stallThreshold + 1) * 0.03125);
+										printf("[%d] FullStepSpeed             Register = %10.2lf steps/s\n", i, ((double) mot[i].fullStepSpeed + 0.5) / 0.065536);
+										printf("[%d] StepMode                  Register = %10d s/r\n", i, (int) pow(2.0, (double) (mot[i].stepMode + 1)) * 100);
+										printf("[%d] Config                    Register = %10X\n", i, mot[i].conf);
+									}
+								}
+							}
+							return 0;
+						}
+						break;
 				}
 				// Always send this command when image size or type is changed!
 				//	also the first time you want to grab and transfer an image
 				AIC_CameraDataUpdate(cam);
 				if(img)
 					AIC_ImageReAlloc(cam, img);
-				_focus();
+				if(sc == 14)
+					_splitFocusAction();
+				else
+					_focus(avg, not);
 
 				AIC_CameraLinkClose(cam);	// Close USB channel
 			}
