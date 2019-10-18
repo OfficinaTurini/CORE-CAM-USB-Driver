@@ -1,4 +1,4 @@
-# CORE-CAM-USB-Driver Rev. 2.0.0
+# CORE-CAM-USB-Driver Rev. 2.1.1
 This archive includes the USB driver for CORE-CAM.
 This driver has been developed and tested in Windows 7 with Visual Studio 2010.
 OpenCV 3.2 and FTDI libraries are required. 
