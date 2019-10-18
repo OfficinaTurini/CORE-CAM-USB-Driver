@@ -95,11 +95,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="remote.cpp" />
     <ClCompile Include="timer.cpp" />
     <ClCompile Include="_string.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="remote.h" />
     <ClInclude Include="_string.h" />
   </ItemGroup>
   <ItemGroup>
