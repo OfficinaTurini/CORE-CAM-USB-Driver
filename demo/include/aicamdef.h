@@ -14,6 +14,11 @@
 #ifndef AICAM_DEFINITIONS
 #define AICAM_DEFINITIONS
 
+#define __AiCam_RevisionAlpha__		"2.1.1"		// Program revision as text
+#define __AiCam_RevisionInt__		211			// Program revision as integer
+
+#include <stdarg.h>
+
 /*!	\mainpage Main Index
 	- \ref intro \n
 		- \ref instal \n
@@ -280,6 +285,7 @@ typedef struct SensorProperties {
 	double		verPixelSize;		///< vertical dimension of the pixel as um
 	// Sensor and peripherals set
 	int			adc;
+	int			vref;
 	int			xFlip;
 	int			yFlip;
 	int			aec;
@@ -314,6 +320,7 @@ typedef struct AiCamHandle {
 	void				* driverInfo;
 	AiCamHardware		camera;
 	ImageProperties		imgCamSet;		///< Image properties for the camera
+	unsigned			id;
 }AiCamHandle;
 
 typedef struct ImageHandle {
@@ -324,12 +331,13 @@ typedef struct ImageHandle {
 typedef AiCamHandle *	AiCam;		///< Basic pointer to the AiCam handler
 
 // call-back prototype
-typedef void (*AiCamProgress)(const char * title, int value);
+typedef void (*AiCamProgress)(const char * fmt, ...);
 
 /// @defgroup hwPlatform Camera platform definitions
 /// @{
 
 #define CORE_CAM	666		///< First AI developed camera, monochrome MT9V032
+#define CORE_KING	999		///< Multi sensor ARGO based AI camera
 
 /// @}
 
@@ -345,5 +353,23 @@ typedef void (*AiCamProgress)(const char * title, int value);
 /// @}
 
 enum ConversionMode { AIC_16_TO_8 };
+
+enum AIC_PIPE_COMMANDS {
+	AIC_PIPE_LENS_FOCUS,
+	AIC_PIPE_LENS_ZOOM,
+	AIC_PIPE_LENS_IR,
+	AIC_PIPE_SERIAL_0_BAUD,
+	AIC_PIPE_SERIAL_1_BAUD,
+	AIC_PIPE_SERIAL_TX0,
+	AIC_PIPE_SERIAL_TX1,
+	AIC_PIPE_SERIAL_RX0,
+	AIC_PIPE_SERIAL_RX1,
+	AIC_PIPE_SERIAL_RX0_LEN,
+	AIC_PIPE_SERIAL_RX1_LEN,
+	AIC_PIPE_EEPROM_READ,
+	AIC_PIPE_EEPROM_WRITE
+};
+
+#define AIC_DSP_ACK		0x55AA
 
 #endif

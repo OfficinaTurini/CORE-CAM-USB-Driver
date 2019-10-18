@@ -33,6 +33,10 @@ CTYPE const char DLL_P AIC_CameraLinkSerial(unsigned camera);
 CTYPE AiCamHandle DLL_P AIC_CameraLinkOpen(unsigned camera);
 CTYPE void DLL AIC_CameraLinkClose(AiCam handle);
 
+// Used for remote controls
+CTYPE U16 DLL AIC_CommandPipe(AiCam handle, unsigned command, ...);
+CTYPE U16 DLL AIC_CommandPipeRetCode();
+
 // Camera init
 CTYPE U16 DLL AIC_CameraInit(AiCam handle);
 CTYPE U16 DLL AIC_CameraId(AiCam handle, int * ok);
@@ -45,7 +49,7 @@ CTYPE U16 DLL AIC_CameraGrabRef(AiCam handle);
 CTYPE U16 DLL AIC_CameraReady(AiCam handle, int * ok);
 CTYPE U16 DLL AIC_CameraTransfer(U16 frame, AiCam handle, ImageHandle * img);
 CTYPE U16 DLL AIC_CameraTransferAverage(AiCam handle, ImageHandle * img);
-CTYPE U16 DLL AIC_CameraTransferGrab(AiCam handle, ImageHandle * img);
+CTYPE U16 DLL AIC_CameraTransferGrab(U16 frame, AiCam handle, ImageHandle * img);
 CTYPE U16 DLL AIC_CameraTransferAverageGrab(AiCam handle, ImageHandle * img);
 CTYPE U16 DLL AIC_CameraDataUpdate(AiCam handle);
 CTYPE U16 DLL AIC_CameraDataType(U16 imgType, AiCam handle);
@@ -70,6 +74,7 @@ CTYPE U16 DLL AIC_CameraAverageOpen(AiCam handle);
 CTYPE U16 DLL AIC_CameraAverageClose(AiCam handle);
 CTYPE U16 DLL AIC_CameraLedEnable(U16 enable, AiCam handle);
 CTYPE U16 DLL AIC_CameraLedSource(U16 source, AiCam handle);
+CTYPE U16 DLL AIC_CameraImageFree(AiCam handle);
 
 // Image functions (locally)
 CTYPE ImageHandle DLL_P AIC_ImageCreate(AiCam handle);
@@ -86,13 +91,7 @@ CTYPE void DLL AIC_ImageShowClose(const char * title);
 CTYPE U16 DLL AIC_ImageSave(const char * fileName, ImageHandle * img, int quality);
 CTYPE unsigned DLL AIC_DataSize(int dt);
 
-CTYPE void DLL AIC_ColorCodingMatrixClose(matrix3D * mg);
-
 CTYPE void DLL AIC_RectCenter(aic_rect * r, double * xc, double * yc);
-
-// Camera embedded
-CTYPE void DLL AIC_MotionApplyToImage(int searchMode, ImageHandle * src, ImageHandle * rgbDst, matrix2D * horVector, matrix2D * verVector, matrix3D * gain);
-CTYPE void DLL AIC_MotionApplyArrowToImage(ImageHandle * src, matrix2D * horVector, matrix2D * verVector);
 
 // Memory allocation functions
 CTYPE matrix2D DLL_P AIC_MatrixCreate(MatrixTypes mt, U32 horSize, U32 verSize);
@@ -122,7 +121,6 @@ CTYPE U16 DLL AIC_ImageMotionVector(U16 searchFactor, AiCam handle);
 CTYPE U16 DLL AIC_ImageMotionVectorReady(AiCam handle);
 CTYPE U16 DLL AIC_ImageMotionGetVectorData(matrix2D * horVector, matrix2D * verVector, AiCam handle);
 
-
 // Sensor related
 CTYPE U16 DLL AIC_SensorHorPixel(AiCam handle, int * ok);
 CTYPE U16 DLL AIC_SensorVerPixel(AiCam handle, int * ok);
@@ -134,7 +132,8 @@ CTYPE U16 DLL AIC_SensorWrReg(U16 reg, U16 val, AiCam handle);
 // 
 CTYPE U16 DLL AIC_NopCommand(AiCam handle);
 CTYPE U16 DLL AIC_FirmwareRevision(AiCam handle, int * ok);
-CTYPE U32 DLL AIC_ElapsedTime(AiCam handle, int * ok);
+CTYPE U16 DLL AIC_ElapsedTime(AiCam handle, int * ok);
+CTYPE U16 DLL AIC_Revision(char * revAsText);
 
 // ROI and statistics
 CTYPE roi DLL_P AIC_RoiCreate(ImageHandle * i);
@@ -144,13 +143,22 @@ CTYPE void DLL AIC_RoiStatistics(int op, roi * r, ImageHandle * i);
 // Disk access
 CTYPE U16 DLL AIC_DiskMount(int enable, AiCam handle, int * ok);
 CTYPE U16 DLL AIC_DiskFileList(const char * path, FILINFO ** fileList, AiCam handle);
-CTYPE U16 DLL AIC_ReadFileFrom(const char * srcPath, const char * dstPath, AiCam handle);	// PC <- AiCam
-CTYPE U16 DLL AIC_DiskCopyFilesTo(const char * srcPath, const char * dstPath, AiCam handle);	// PC -> AiCam
+CTYPE U16 DLL AIC_GetFile(const char * srcPath, const char * dstPath, AiCam handle);	// PC <- AiCam
+CTYPE U16 DLL AIC_PutFile(const char * srcPath, const char * dstPath, AiCam handle);	// PC -> AiCam
+CTYPE char DLL_P AIC_DiskPath(AiCam handle, int * ok);
+CTYPE char DLL_P AIC_DiskLabel(AiCam handle, int * ok);
+CTYPE U32 DLL AIC_DiskFree(AiCam handle, int * ok);
+CTYPE U16 DLL AIC_DiskFileDelete(const char * srcPath, AiCam handle);
+CTYPE U16 DLL AIC_DiskCreateFolder(const char * srcPath, AiCam handle);
+CTYPE U16 DLL AIC_DiskFileRename(const char * srcPath, const char * dstPath, AiCam handle);
+CTYPE U16 DLL AIC_DiskChangeFolder(const char * srcPath, AiCam handle);
+
 // Low level I/O
 CTYPE U16 DLL AIC_BufferAlloc(unsigned kBytes, AiCam handle);
 CTYPE U16 DLL AIC_BufferFree(AiCam handle);
 CTYPE U16 DLL AIC_BufferRead(char * dst, U16 offset, U16 len, AiCam handle);
 CTYPE U16 DLL AIC_BufferWrite(const char * src, U16 offset, U16 len, AiCam handle);
+CTYPE U16 DLL AIC_LoopBackTest(U32 * buff, U32 len, AiCam handle);
 
 // Library init
 CTYPE void DLL AIC_SetProgressCallback(AiCamProgress func);
